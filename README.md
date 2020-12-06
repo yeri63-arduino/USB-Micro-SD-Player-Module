@@ -21,6 +21,7 @@ Key: (.) = Short Press, (-) = Long Press, (*) = default
 | ... | Change volume (low, med*, high) in single and 20 sec mode. |
 | ..- | Change interval (5s*, 10s, 20s) in autoplay mode. |
 
+
 Program Status (via LED):
 
 | Pattern | Description |
