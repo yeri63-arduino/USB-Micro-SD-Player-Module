@@ -15,15 +15,15 @@ Module commands are entered by waving hand over the photocell, or pressing push 
 Note: A short press or shadow over the photocell is anything less than 500 ms. A long press is anything greater.
 
 Key . = Short Press, - = Long Press, * = default
- .    = Play next song.
- -    = Stop playing song, and fade to silence.
- ..   = Play previous song.
- .-   = Change play mode (full song, 20 sec, book, auto).
- ...  = Change volume (low, med*, high) in single and 20 sec mode.
- ..-  = Change interval (5s, 10s, 20s) in autoplay mode.
+ - .    = Play next song.
+ - -    = Stop playing song, and fade to silence.
+ - ..   = Play previous song.
+ - .-   = Change play mode (full song, 20 sec, book, auto).
+ - ...  = Change volume (low, med*, high) in single and 20 sec mode.
+ - ..-  = Change interval (5s, 10s, 20s) in autoplay mode.
  
  Module Status (via LED):
- Blinking = Error, unable to read files on Micro SD card, or the last power cycle was too short (less than 10 sec).
- On       = Ready for new command, or playing song.
- Off      = Processing last command, or sleeping.
- n blinks = Current setting of play mode, volume, or interval.
+ - Blinking = Error, unable to read files on Micro SD card, or the last power cycle was too short (less than 10 sec).
+ - On       = Ready for new command, or playing song.
+ - Off      = Processing last command, or sleeping.
+ - n blinks = Current setting of play mode, volume, or interval.
