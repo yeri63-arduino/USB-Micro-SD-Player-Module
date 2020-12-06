@@ -1,8 +1,7 @@
 # USB-Micro-SD-Player-Module
 A compact, USB powered, micro SD audio player module.
 
-MP3-Player using DFPlayer mini, ATtiny85, USB, photoresistor or push button switch, potentiometer, and status LED. The 3 x 3.5cm module comes with the following features.
-
+Features:
  - User input available using either photocell or push button switch.
  - Module status (Error, Ready, Play Mode, ect.) via onboard LED.
  - Powered by standard Micro USB 1.0 A phone charger.
