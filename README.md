@@ -11,6 +11,7 @@ Features:
  
 Module accepts commands by waving hand over the photocell, or pressing push button switch. Only one of these is installed. Program status and settings are displayed via an onboard Status LED, by blinking patterns.
 
+Key: (.) = Short Press, (-) = Long Press, (*) = default
 | Input | Command |
 | :---: | :--- |
 | . | Play next song. |
@@ -19,7 +20,6 @@ Module accepts commands by waving hand over the photocell, or pressing push butt
 | .- | Change play mode (full song*, 20 sec, book, auto). |
 | ... | Change volume (low, med*, high) in single and 20 sec mode. |
 | ..- | Change interval (5s*, 10s, 20s) in autoplay mode. |
-Key: (.) = Short Press, (-) = Long Press, (*) = default
 
 Program Status (via LED):
 
