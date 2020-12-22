@@ -1,5 +1,5 @@
 /*
- Program: USB Micro SD Player Module
+ Program: USB Micro SD Player Module (YX-5200-24SS decoder)
     Date: 21-Dec-2020
 Revision: 21a
   Author: Gerry Walterscheid, jr.
