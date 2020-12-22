@@ -32,7 +32,7 @@ Key . = Short Press, - = Long Press, * = default
  .-   = Change play mode (full song, 20 sec, book, auto).
 
  ...  = Change volume (low, med*, high) in single and 20 sec mode.
- ..-  = Change interval (5s, 10s, 20s) in autoplay mode.
+ ..-  = Change interval (5s, 10s, 30s, 60s) in autoplay mode.
 
  .... = Reset user settings (play mode, volume, and interval).
  
@@ -124,7 +124,7 @@ byte volArray[3] = { 15, 23, 30 };    // Volume settings (low, med, high).
 byte volReset = 1;                    // Init volume setting (1 = medium).
 byte volume;
 
-byte intArray[5] = {5, 10, 20};       // Interval settings (5s, 10s, 20s).
+byte intArray[4] = {5, 10, 30, 60};   // Interval settings (5s, 10s, 30s, 60s).
 byte intvlReset = 1;                  // Init interval setting (10s);
 byte interval;
 
