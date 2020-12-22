@@ -10,7 +10,7 @@ Features:
  - Emulate external SD drive when connected to computer using USB cable.
  - Programmable controller (ATTiny85) using ISP port.
  
-Module accepts commands by waving hand over the photocell, or pressing push button switch (depending on module configuration). Program status and settings are displayed via an onboard Status LED, by blinking patterns.
+Module accepts commands by waving hand over the photocell, or pressing push button switch (depending on module configuration). Program status and settings are displayed via an onboard Status LED.
 
 Key: (.) = Short Press, (-) = Long Press, (*) = default
 | Input | Command |
