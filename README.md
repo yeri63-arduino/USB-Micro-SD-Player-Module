@@ -19,8 +19,8 @@ Key: (.) = Short Press, (-) = Long Press, (*) = default
 | - | Stop playing song, and fade to silence. |
 | .. | Play previous song. |
 | .- | Change play mode (full song*, 20 sec, book, auto). |
-| ... | Change volume (low, med*, high) in single and 20 sec mode. |
-| ..- | Change interval (5s, 10s*, 20s) in autoplay mode. |
+| ... | Change volume (low, med*, high) in all modes. |
+| ..- | Change interval (5 sec, 10 sec*, 20 sec) in autoplay mode. |
 | .... | Reset user settings (play mode, volume, and interval). |
 
 Program Status (via LED):
@@ -30,4 +30,13 @@ Program Status (via LED):
 | Blinking | Error, unable to read files on Micro SD card, or the last power cycle was too short (less than 10 sec). |
 | Steady On | Ready for new command, or playing song. |
 | Steady Off | Processing last command, or sleeping. |
-| n blinks | Used to show current setting of play mode, volume, etc. |
+| n blinks | Used to show current setting or completion of last command. |
+
+Blink Codes (via LED):
+
+| n | Play Mode | Volume | Interval | Other |
+| :---: | :---: |  :---: | :---: | :---: |
+| 1 | full song | low | 5 sec | reset |
+| 2 | 20 sec | med | 10 sec |  |
+| 3 | book | high | 20 sec |  |
+| 4 | auto |  |  |  |
