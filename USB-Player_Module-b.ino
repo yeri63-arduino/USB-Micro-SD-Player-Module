@@ -83,7 +83,7 @@ Updates in this version:
   reading files stored in the root folder using their original filenames.
 
 - Update to not start playing songs immediately in autoplay mode when used in LDR
-  sendor and someone turns on the light in the room where module is located. Wait
+  sensor and someone turns on the light in the room where module is located. Wait
   until the delay has passed first.
     
 */
