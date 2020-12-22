@@ -4,9 +4,10 @@ A compact, USB powered, micro SD audio player module.
 Features:
  - User input available using either photocell or push button switch.
  - Module status (Error, Ready, Play Mode, ect.) via onboard LED.
+ - User settings are saved between power cycles, with option to reset.
  - Powered by standard Micro USB 1.0 A phone charger.
- - Read up to 32GB Micro SD with MP3 songs/audio clips.
- - Emulates external SD drive when connected to computer using USB cable.
+ - Store up to 128 MP3 files on Micro SD (32G max).
+ - Emulate external SD drive when connected to computer using USB cable.
  - Programmable controller (ATTiny85) using ISP port.
  
 Module accepts commands by waving hand over the photocell, or pressing push button switch. Only one of these is installed. Program status and settings are displayed via an onboard Status LED, by blinking patterns.
@@ -20,6 +21,7 @@ Key: (.) = Short Press, (-) = Long Press, (*) = default
 | .- | Change play mode (full song*, 20 sec, book, auto). |
 | ... | Change volume (low, med*, high) in single and 20 sec mode. |
 | ..- | Change interval (5s*, 10s, 20s) in autoplay mode. |
+| .... | Reset user settings (play mode, volume, and interval). |
 
 Program Status (via LED):
 
