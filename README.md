@@ -10,7 +10,7 @@ Features:
  - Emulate external SD drive when connected to computer using USB cable.
  - Programmable controller (ATTiny85) using ISP port.
  
-Module accepts commands by waving hand over the photocell, or pressing push button switch (depending on module configuration). Program status and settings are displayed via an onboard Status LED.
+Module accepts commands by waving hand over the photocell, or pressing push button switch (depending on module configuration).
 
 Key: (.) = Short Press, (-) = Long Press, (*) = default
 | Input | Command |
@@ -23,7 +23,9 @@ Key: (.) = Short Press, (-) = Long Press, (*) = default
 | ..- | Change interval (5 sec, 10 sec*, 20 sec) in autoplay mode. |
 | .... | Reset user settings (play mode, volume, and interval). |
 
-Program Status (via LED):
+Module Status (via LED):
+
+Module status and user settings are displayed via an onboard Status LED.
 
 | Pattern | Description |
 | :---: | :--- |
@@ -34,9 +36,11 @@ Program Status (via LED):
 
 Blink Codes (via LED):
 
-| n | Play Mode | Volume | Interval | Other |
+The blink code reflects the last command entered. Locate the column of the command entered, and then move down to the row matching the number of blinks observed to see the value returned.
+
+| n | Play Mode | Volume | Interval | Reset |
 | :---: | :---: |  :---: | :---: | :---: |
-| 1 | full song | low | 5 sec | reset |
-| 2 | 20 sec | med | 10 sec |  |
-| 3 | book | high | 20 sec |  |
-| 4 | auto |  |  |  |
+| 1 | full song | low | 5 sec | ok |
+| 2 | 20 sec | med | 10 sec | - |
+| 3 | book | high | 30 sec | - |
+| 4 | auto | - | 60 sec | - |
