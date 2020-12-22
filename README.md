@@ -32,7 +32,7 @@ Module status and user settings are displayed via an onboard Status LED.
 | Steady Off | Processing last command, or sleeping. |
 | n blinks | Used to show current setting or completion of last command. |
 
-The blink code reflects the last command entered. Locate the column of the command entered, and then move down to the row matching the number of blinks observed to see the value returned.
+The blink code reflects the last command entered. Locate the column of the command entered, and then move down to the row matching the number of blinks observed to see what information was provided.
 
 | n | Play Mode | Volume | Interval | Reset |
 | :---: | :---: |  :---: | :---: | :---: |
