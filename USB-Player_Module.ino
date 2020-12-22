@@ -1,7 +1,7 @@
 /*
  Program: USB Micro SD Player Module
-    Date: 04-Dec-2020
-Revision: 20
+    Date: 21-Dec-2020
+Revision: 21a
   Author: Gerry Walterscheid, jr.
 
 MP3-Player using DFPlayer mini, ATtiny85, USB, photoresistor or push button switch, 
@@ -33,6 +33,8 @@ Key . = Short Press, - = Long Press, * = default
 
  ...  = Change volume (low, med*, high) in single and 20 sec mode.
  ..-  = Change interval (5s, 10s, 20s) in autoplay mode.
+
+ .... = Reset user settings (play mode, volume, and interval).
  
   Module Status (via LED):
 
@@ -72,11 +74,15 @@ The circuit:
 
 Updates in this version:
 
-- Simplifid menu structure from 7 commands down to 6.
+- Store all user settings in non-volatile memory, to retain between power cycles.
 
-- Fixed bug with book mode, where multiple requests were required to advance 
-  to the next chapter.mp3 file, probably due to their large size. This was 
-  not observed when reading smaller than 1MB.
+- Add (....) command to reset settings, to go back to known state.
+
+- Change filecount routine to work with multiple Micro SD cards.
+
+- Update to not start playing songs immediately in autoplay mode when used in LDR
+  sensor and someone turns on the light in the room where module is located. Wait
+  until the delay has passed first.
   
 */
 
@@ -109,18 +115,25 @@ byte debounce = 20;                   // 20 ms debounce for switch.
 byte fileCount;                       // Number of audio files on Micro SD card.
 byte state = 0;                       // State machine variable.
 
-byte mode = 0;                        // Play mode (0 = full, 20s, auto, book).
+byte modeReset = 0;                   // Play mode (0 = full, 20s, auto, book).
+byte mode;
 
-byte volArray[3] = { 15, 20, 25 };    // Volume settings (low, med, high).
-byte volume = 1;                      // Init volume setting (1 = medium).
+byte volArray[3] = { 15, 23, 30 };    // Volume settings (low, med, high).
+byte volReset = 1;                    // Init volume setting (1 = medium).
+byte volume;
 
 byte intArray[5] = {5, 10, 20};       // Interval settings (5s, 10s, 20s).
-byte interval = 0;                    // Init interval setting (30s);
+byte intvlReset = 1;                  // Init interval setting (10s);
+byte interval;
 
 bool paused = false;                  // State of current song.
 
 SoftwareSerial SoftSerial(DFPlayer_Rx, DFPlayer_Tx);
 DFRobotDFPlayerMini DFPlayer;
+
+// ------------------------------------------------------------------ 
+//  Initialize
+// ------------------------------------------------------------------ 
 
 void setup()
 { 
@@ -134,6 +147,12 @@ void setup()
   // Read seed stored in eeprom to get new series of pseudo random #s.
   unsigned int seed = EEPROM.read(0);
   randomSeed(seed);
+
+  // Restore user settings stored in eeprom. Use mode function to limit
+  // range to acceptable values.
+  mode = EEPROM.read(1) % 4;
+  volume = EEPROM.read(2) % 3;
+  interval = EEPROM.read(3) % 3;
 
   // Save new seed in eeprom, to use during next power on.
   EEPROM.write(0, seed + random(10));
@@ -153,26 +172,32 @@ void setup()
   }
   
   // Initialize DFPlayer settings and determine file count.
-  DFPlayer.setTimeOut(500); 
-  DFPlayer.volume(volArray[volume]);
-  fileCount = DFPlayer.readFileCounts();
+  DFPlayer.setTimeOut(500);
+  fileCount = readFileCount();
 
+  // Initialize player volume.
+  DFPlayer.volume(volArray[volume]);
+  
   // Indicate DFPlayer configuration has completed successfully.
   digitalWrite(LED_status, LED_on);
 }
+
+// ------------------------------------------------------------------ 
+//  Main Program
+// ------------------------------------------------------------------ 
 
 void loop()
 {
   // Use state machine to process user input based on number of rapid
   // button presses. Command is determined to be complete following a
-  // 1 sec pause.
+  // 0.5 sec pause.
   
   switch (state) {   
   case 0 : // No button press.
     // This is the default state. If a button press is detected, turn
     // off status LED and advance to the next state.
   
-    // If button press, set hold time and advance to next state.
+    // If button press, set command timeout timer and advance to next state.
     if (digitalRead(Button_switch) == ON) {
       wait_ms(debounce);
       timer1 = millis() + CmdTimeOut;
@@ -183,11 +208,9 @@ void loop()
     break;
 
   case 1 : // 1st button press.
-    // If this is a long press, pause the song and return
-    // to state 0. Otherwise, proceed to the next state.
+    //  -  = Stop playing song, and fade to silence.
   
-    // If long press, fade, pause song, and wait for button 
-    // release.
+    // If no more input, command was long press (-).
     if (millis() > timer1) {
 
       // If song is playing, fade volume.
@@ -200,15 +223,12 @@ void loop()
         
         paused = true;
       }
-
-      // Set the autoplay delay interval timer.
-      timer3 = millis() + intArray[interval] * 1000;
-      
+ 
       state = 10;
       break; 
     }
           
-    // If button released, set timer1 and advance to next state.
+    // If button released, set command timeout timer and advance to next state.
     if (digitalRead(Button_switch) == OFF) {
       wait_ms(debounce);
       timer1 = millis() + CmdTimeOut;
@@ -217,10 +237,9 @@ void loop()
     break;
 
   case 2 : // 1st button release.
-    // Play the next song and return to state 0. If another button 
-    // press is detected, proceed to the next state.
+    //  .  = Play next song.
       
-    // If command timeout, play next song.
+    // If no more input, play next song.
     if (millis() > timer1) {
 
       // Select command based on paused state.
@@ -254,12 +273,14 @@ void loop()
     break;
         
   case 3 : // 2nd button press.
-    // If this is a long press, change play mode and return
-    // to state 0. Otherwise, proceed to the next state.
+    //  .-  = Change play mode.
 
-    // If long press, change play mode.
+    // If no more input, change play mode.
     if (millis() > timer1) {
       mode = ++mode % 4; 
+
+      // Save user setting in EEPROM, to use following next power cycle.
+      EEPROM.update(1, mode);
 
       // Provide user feedback of current play mode (full, 20s, auto, book).
       displayStatus(mode); 
@@ -278,10 +299,9 @@ void loop()
     break;
 
   case 4 : // 2nd button release.
-    // Play the previous song and return to state 0. If another button press 
-    // is detected, proceed to the next state.
-  
-    // If command timeout, change play mode.
+    //  ..  = Play previous song.
+    
+    // If no more input, play previous song.
     if (millis() > timer1) {
       DFPlayer.stop();
       playPrev();
@@ -305,21 +325,19 @@ void loop()
     break;
 
   case 5 : // 3rd button press.
-    // If this is a long press, change interval and return
-    // to state 0. Otherwise, proceed to the next state.
+    //  ..-  = Change interval time, which is used in autoplay mode.
 
-    // If long press, change interval and wait for button release.
+    // If no more input, adjust interval setting.
     if (millis() > timer1) {
-      interval = ++interval % 3; 
+      interval = ++interval % 3;
+
+      // Save user setting in EEPROM, to use following next power cycle.
+      EEPROM.update(3, interval);
 
       // Provide user feedback of interval time.
       displayStatus(interval);
-
-      // Update the current song interval timer.
-      timer3 = millis() + intArray[interval] * 1000;
-      
-      digitalWrite(LED_status, LED_on);
-      state = 0;
+    
+      state = 10;
       break; 
     }
 
@@ -333,14 +351,67 @@ void loop()
     break;
     
   case 6 : // 3nd button release.
-    // Change the volume settings, and return to state 0.
+    //  ...  = Change volume.
   
-    // If command timeout, change the volume settings.
+    // If no more input, change the volume settings.
     if (millis() > timer1) {
       volume = ++volume % 3;
 
+      // Save user setting in EEPROM, to use following next power cycle.
+      EEPROM.update(2, volume);
+
       // Provide user feedback of current volume level (low, med, high).
       displayStatus(volume); 
+      DFPlayer.volume(volArray[volume]);
+
+      digitalWrite(LED_status, LED_on);
+      state = 0;
+      break; 
+    }
+
+    // If button release, advance to next state.
+    if (digitalRead(Button_switch) == ON) {
+      wait_ms(debounce);
+      timer1 = millis() + CmdTimeOut;
+      state = 7;
+    }
+    
+    break;
+
+  case 7 : // 4rd button press.
+    //  ...- = Not used.
+
+    // If no more input, ignore and wait for button release.
+    if (millis() > timer1) {
+      state = 10;
+      break; 
+    }
+
+    // If button release, advance to next state.
+    if (digitalRead(Button_switch) == OFF) {
+      wait_ms(debounce);
+      timer1 = millis() + CmdTimeOut;
+      state = 8;
+    }
+    
+    break;
+    
+  case 8 : // 4th button release.
+    //  ....  = Reset all user settings to their default state.
+  
+    // If no more input, reset user settings..
+    if (millis() > timer1) {
+      mode = modeReset;
+      interval = intvlReset;
+      volume = volReset;
+
+      // Save user settings in EEPROM, to use following next power cycle.
+      EEPROM.write(1, mode);
+      EEPROM.write(2, volume);
+      EEPROM.write(3, interval);
+
+      // Provide user feedback of reset.
+      displayStatus(0); 
       DFPlayer.volume(volArray[volume]);
 
       digitalWrite(LED_status, LED_on);
@@ -355,11 +426,15 @@ void loop()
     }
     
     break;
-
-  case 10 : // Wait for button release after long press.      
+    
+  case 10 : // Wait for button release after long press.
     // If button release, reset state to 0.
     if (digitalRead(Button_switch) == OFF) {
       wait_ms(debounce);
+
+      // Restart the autoplay delay interval timer. This is only used when
+      // the autoplay mode is enabled.
+      timer3 = millis() + intArray[interval] * 1000;
       
       digitalWrite(LED_status, LED_on);
       state = 0;
@@ -368,37 +443,49 @@ void loop()
     break; 
   }
 
-  // If autoplay mode and no button pressed...
-  if (mode == 3 and digitalRead(Button_switch) == OFF) {
-          
-    // Play next song after reaching interval, then set playTime.
-    if (digitalRead(DFPlayer_busy) == OFF and millis() > timer3) {
-      playRandom();
-      timer2 = millis() + playTime;
-    }
-
-    // Initialize timer3 after song ends, and reset paused status.
-    if (digitalRead(DFPlayer_busy) == ON) {
-      timer3 = millis() + intArray[interval] * 1000;
-      paused = false;
-    }
-  }
+  // ------------------------------------------------------------------ 
   
-  // If playing song in 20s mode and song still playing...
-  if (mode == 1 and digitalRead(DFPlayer_busy) == ON)
+  switch(mode) {
+  case 1 : // 20s mode.
+    // If playing song in 20s mode and song still playing...
+    if (digitalRead(DFPlayer_busy) == ON)
   
-    // Fade volume after 20s.
-    if (millis() > timer2) {
-      digitalWrite(LED_status, LED_off);
-      fadeVolumeDown(volArray[volume]);
+      // Fade volume after 20s.
+      if (millis() > timer2) {
+        digitalWrite(LED_status, LED_off);
+        fadeVolumeDown(volArray[volume]);
 
-      // Stop playing and reset the volume.
-      DFPlayer.stop();
-      DFPlayer.volume(volArray[volume]); 
+        // Stop playing and reset the volume.
+        DFPlayer.stop();
+        DFPlayer.volume(volArray[volume]); 
       
-      digitalWrite(LED_status, LED_on);
+        digitalWrite(LED_status, LED_on);
+      }
+    break;
+
+  case 3 : // Autoplay mode.
+    // If in autoplay mode, no button pressed and in state 0...
+    if (digitalRead(Button_switch) == OFF and state == 0) {
+      // Play next song after reaching interval, then set playTime.
+
+      if (digitalRead(DFPlayer_busy) == OFF and millis() > timer3) {
+        playRandom();
+        timer2 = millis() + playTime;
+      }
+
+      // Initialize timer3 after song ends, and reset paused status.
+      if (digitalRead(DFPlayer_busy) == ON) {
+        timer3 = millis() + intArray[interval] * 1000;
+        paused = false;
+      }
     }
+    break;
+  }
 }
+
+// ------------------------------------------------------------------ 
+//  Functions
+// ------------------------------------------------------------------ 
 
 void wait_ms(int Time) {
   int unsigned long waitTimer = millis() + Time;
@@ -406,8 +493,18 @@ void wait_ms(int Time) {
   while(millis() < waitTimer);
 }
 
+byte readFileCount() {
+  // Lookup number of files by playing the previous file and recording
+  // the file number. Turn the volume down to avoid audio clip.
+  DFPlayer.volume(0);
+  
+  playPrev();
+  DFPlayer.stop();
+  return DFPlayer.readCurrentFileNumber();
+}
+
 void playRandom() {
-  // If the player can't play the file, get a new one and try again.
+  // If the player can't play the file, try again.
  
   do {
     DFPlayer.play(randomNumber(fileCount) + 1);
