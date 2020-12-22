@@ -10,7 +10,7 @@ Features:
  - Emulate external SD drive when connected to computer using USB cable.
  - Programmable controller (ATTiny85) using ISP port.
  
-Module accepts commands by waving hand over the photocell, or pressing push button switch. Only one of these is installed. Program status and settings are displayed via an onboard Status LED, by blinking patterns.
+Module accepts commands by waving hand over the photocell, or pressing push button switch (depending on module configuration). Program status and settings are displayed via an onboard Status LED, by blinking patterns.
 
 Key: (.) = Short Press, (-) = Long Press, (*) = default
 | Input | Command |
@@ -20,7 +20,7 @@ Key: (.) = Short Press, (-) = Long Press, (*) = default
 | .. | Play previous song. |
 | .- | Change play mode (full song*, 20 sec, book, auto). |
 | ... | Change volume (low, med*, high) in single and 20 sec mode. |
-| ..- | Change interval (5s*, 10s, 20s) in autoplay mode. |
+| ..- | Change interval (5s, 10s*, 20s) in autoplay mode. |
 | .... | Reset user settings (play mode, volume, and interval). |
 
 Program Status (via LED):
