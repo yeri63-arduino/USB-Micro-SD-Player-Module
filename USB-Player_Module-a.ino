@@ -596,4 +596,3 @@ int randomNumber(byte n) {
   prev = randomTable[pos];        // save last random number.
   return randomTable[pos++];      // return random number and increment pointer.
 }
-
