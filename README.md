@@ -23,8 +23,6 @@ Key: (.) = Short Press, (-) = Long Press, (*) = default
 | ..- | Change interval (5 sec, 10 sec*, 20 sec) in autoplay mode. |
 | .... | Reset user settings (play mode, volume, and interval). |
 
-Module Status (via LED):
-
 Module status and user settings are displayed via an onboard Status LED.
 
 | Pattern | Description |
@@ -33,8 +31,6 @@ Module status and user settings are displayed via an onboard Status LED.
 | Steady On | Ready for new command, or playing song. |
 | Steady Off | Processing last command, or sleeping. |
 | n blinks | Used to show current setting or completion of last command. |
-
-Blink Codes (via LED):
 
 The blink code reflects the last command entered. Locate the column of the command entered, and then move down to the row matching the number of blinks observed to see the value returned.
 
