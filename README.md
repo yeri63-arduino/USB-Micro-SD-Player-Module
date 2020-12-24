@@ -3,7 +3,7 @@ A compact, USB powered, micro SD audio player module.
 
 Features:
  - User input available using either photocell or push button switch.
- - Module status (Error, Ready, Play Mode, ect.) via onboard LED.
+ - Module status (Error, Ready, Play Mode, ect.) via onboard status LED.
  - User settings are saved between power cycles, with option to reset.
  - Powered by standard Micro USB 1.0 A phone charger.
  - Store up to 128 MP3 files on Micro SD (32G max).
