@@ -27,7 +27,7 @@ Module status and user settings are displayed via an onboard Status LED.
 
 | Pattern | Description |
 | :---: | :--- |
-| Blinking | Error, unable to read files on Micro SD card, or the last power cycle was too short (less than 10 sec). |
+| Blinking | Error, unable to read Micro SD card. |
 | Steady On | Ready for new command, or playing song. |
 | Steady Off | Processing last command, or sleeping. |
 | n blinks | Used to show current setting or completion of last command. |
