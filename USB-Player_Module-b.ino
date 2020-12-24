@@ -1,7 +1,7 @@
 /*
- Program: USB Micro SD Player Module (JL AA20HFj616-94 decoder)
-    Date: 21-Dec-2020
-Revision: 24a
+ Program: USB Micro SD Player Module
+    Date: 24-Dec-2020
+Revision: 24b
   Author: Gerry Walterscheid, jr.
 
 MP3-Player using DFPlayer mini, ATtiny85, USB, photoresistor or push button switch, 
@@ -11,7 +11,7 @@ ing features.
  - User input available using either photocell or push button switch.
  - Module status (Error, Ready, Play Mode, ect.) via onboard LED.
  - Powered by standard Micro USB 1.0 A phone charger.
- - Read up to 32GB Micro SD with MP3 songs/audio clips (128 files max).
+ - Read up to 32GB Micro SD with MP3 songs/audio clips.
  - Emulates external SD drive when connected to computer using USB cable.
  - Arduino programming of ATTINY available using ISP port.
 
@@ -38,8 +38,7 @@ Key . = Short Press, - = Long Press, * = default
  
   Module Status (via LED):
 
-  Blinking = Error, unable to read files on Micro SD card, or the last
-             power cycle was too short (less than 10 sec).
+  Blinking = Error, unable to read files on Micro SD card.
   On       = Ready for new command, or playing song.
   Off      = Processing last command, or sleeping.
   n blinks = Used to show current setting of play mode, volume, etc.
@@ -74,18 +73,37 @@ The circuit:
 
 Updates in this version:
 
-- Added new file count routine, to read the number of files stored on the Micro
-  SD card, since this decoder cannot read anything from the DFPlayer module. 
+- Updated code to be compatible with JL AA20HFj616-94 decoder on the 
+  DFPlayer Mini module.
 
-- Use this version for the JL AA20HFj616-94, a clone of the YX-5200-24SS, with
-  substantially less features. All functions in the DFRobot Library for reading
-  values from the DFPlayer Mini do not work. Fortunately, it does still support
-  reading files stored in the root folder using their original filenames.
+- When entering Book mode, reset the file counter to start at
+  Chapter 1. 
+  
+- Created aliases for the different modes to make these easier to see 
+  within the code.
 
-- Update to not start playing songs immediately in autoplay mode when used in LDR
-  sensor and someone turns on the light in the room where module is located. Wait
-  until the delay has passed first.
-    
+- Following a reset, stop playing file.
+
+- Update file variable everytime a new chapter is started, and save
+  to EEPROM to survive a power cycle.
+
+- Limit the sequential functions playNext() and playPrev() to Book mode only.
+
+- Change the playPrev() and playNext() functions so that the file is played
+  1st, and then incremented, so that the book won't start playing until a
+  new play command is issued.
+
+- On startup, check if in Book mode, to adjust file pointer to point to the
+  same chapter that was playing prior to shutdown.
+
+- Fix issues where the song volume is sometimes very low, probably due to the
+  next command being ignored following a pause() or stop(). Added short time
+  delay, 100 ms to fix.
+
+- Fixed 60 sec delay issue by adding (long) cast to prevent int rollover with
+  millis() future time values greater than 32,767 which became -32,768. Unless
+  math variables are cast, they will assume the type int.
+  
 */
 
 #include "SoftwareSerial.h"
@@ -104,7 +122,21 @@ Updates in this version:
 #define ON LOW                        // Dark or button press.
 #define OFF HIGH                      // Light or button release.
 
+#define TRUE 1                        // Boolean constant
+#define FALSE 0                       // Boolean constant
+
 #define N 128                         // Max number of audio files.
+
+#define Full 0                        // Full song mode
+#define Short 1                       // 20 sec song mode
+#define Auto 2                        // Auto play mode
+#define Book 3                        // Book mode
+
+#define seedAddr 0                    // EEPROM address for random seed.
+#define modeAddr 1                    // EEPROM address for mode.
+#define volAddr 2                     // EEPROM address for volume.
+#define intAddr 3                     // EEPROM address for interval.
+#define fileAddr 4                    // EEPROM address for file.
 
 unsigned long timer1;                 // Time since last button press/release.
 unsigned long timer2;                 // Time playing audio file.
@@ -115,6 +147,7 @@ byte fadeTime = 3000;                 // 3 sec audio fade.
 byte debounce = 20;                   // 20 ms debounce for switch.
 
 byte fileCount;                       // Number of audio files on Micro SD card.
+byte file;                            // Last audio file played.
 byte state = 0;                       // State machine variable.
 
 byte modeReset = 0;                   // Play mode (0 = full, 20s, auto, book).
@@ -124,11 +157,12 @@ byte volArray[3] = { 15, 23, 30 };    // Volume settings (low, med, high).
 byte volReset = 1;                    // Init volume setting (1 = medium).
 byte volume;
 
-byte intArray[4] = {5, 10, 30, 60};   // Interval settings (5s, 10s, 30s, 60s).
+byte intArray[4] = { 5, 10, 30, 60 }; // Interval settings (5s, 10s, 30s, 60s).
 byte intvlReset = 1;                  // Init interval setting (10s);
 byte interval;
 
 bool paused = false;                  // State of current song.
+bool allFiles = false;                // State of valid file numbers for this Micro SD.
 
 SoftwareSerial SoftSerial(DFPlayer_Rx, DFPlayer_Tx);
 DFRobotDFPlayerMini DFPlayer;
@@ -147,17 +181,18 @@ void setup()
   digitalWrite(LED_status, LED_on);
   
   // Read seed stored in eeprom to get new series of pseudo random #s.
-  unsigned int seed = EEPROM.read(0);
+  unsigned int seed = EEPROM.read(seedAddr);
   randomSeed(seed);
 
-  // Restore user settings stored in eeprom. Use mode function to limit
-  // range to acceptable values.
-  mode = EEPROM.read(1) % 4;
-  volume = EEPROM.read(2) % 3;
-  interval = EEPROM.read(3) % 3;
+  // Restore data saved in EEPROM. Use mode function to limit range to
+  // acceptable values.
+  mode = EEPROM.read(modeAddr) % 4;
+  volume = EEPROM.read(volAddr) % 3;
+  interval = EEPROM.read(intAddr) % 3;
+  file = EEPROM.read(fileAddr);
 
-  // Save new seed in eeprom, to use during next power on.
-  EEPROM.write(0, seed + random(10));
+  // Save in EEPROM, to restore after next power cycle.
+  EEPROM.write(seedAddr, seed + random(10));
   
   // Configure baud rate for communication to DFPlayer after short pause.
   wait_ms(250);
@@ -171,28 +206,53 @@ void setup()
       digitalWrite(LED_status, !digitalRead(LED_status));
       wait_ms(100);
     }
-  }
+  }  
   
   // Initialize DFPlayer settings and determine file count.
   DFPlayer.setTimeOut(500);
-  fileCount = readFileCount();
+  fileCount = DFPlayer.readFileCounts();
 
+  // Determine if even numbered files are unavailable, which appears
+  // to occur with large files, ie. audio books.
+  DFPlayer.volume(0);
+
+  DFPlayer.play(2);
+  DFPlayer.stop();
+  wait_ms(100);
+
+  if (DFPlayer.readCurrentFileNumber() != 2)
+    allFiles = FALSE;
+
+  // If booting in book mode, decrement the file so that the
+  // DFPlayer module will resume on the same chapter it was at
+  // prior to shutdown.
+  if (mode == Book) {
+
+    // Audio book chapters are located on odd file numbers. 
+    // Decrement and make sure the file id doesn't go out of 
+    // bounds.
+    if (file < 3)
+      file = fileCount - 1;
+    else
+      file -= 2;
+  }
+      
   // Initialize player volume.
+  wait_ms(100);
   DFPlayer.volume(volArray[volume]);
-  
+  wait_ms(100);
+    
   // Indicate DFPlayer configuration has completed successfully.
   digitalWrite(LED_status, LED_on);
 }
 
-// ------------------------------------------------------------------ 
-//  Main Program
-// ------------------------------------------------------------------ 
-
 void loop()
 {
+  // ------------------------------------------------------------------ 
   // Use state machine to process user input based on number of rapid
   // button presses. Command is determined to be complete following a
-  // 1 sec pause.
+  // 0.5 sec pause.
+  // ------------------------------------------------------------------ 
   
   switch (state) {   
   case 0 : // No button press.
@@ -222,11 +282,12 @@ void loop()
         // Pause the player and reset the volume.
         DFPlayer.pause();
         wait_ms(100);
-        DFPlayer.volume(volArray[volume]); 
-        
+        DFPlayer.volume(volArray[volume]);
+        wait_ms(100);
+
         paused = true;
       }
-      
+ 
       state = 10;
       break; 
     }
@@ -250,12 +311,17 @@ void loop()
         DFPlayer.start();
       else {
         DFPlayer.stop();
+        wait_ms(100);
 
         // If in book mode, play next song. Otherwise pick random song.
-        if (mode == 2)
+        if (mode == Book) {
           playNext();
+          
+          // Save in EEPROM, to restore after next power cycle.
+          EEPROM.update(fileAddr, file);
+        }
         else
-          playRandom();
+          playRandom(fileCount);
       }
 
       // Start song playtime timer and clear pause state.
@@ -282,12 +348,24 @@ void loop()
     if (millis() > timer1) {
       mode = ++mode % 4; 
 
-      // Save user setting in EEPROM, to use following next power cycle.
-      EEPROM.update(1, mode);
-
+      /// Save in EEPROM, to restore after next power cycle.
+      EEPROM.update(modeAddr, mode);
+      
       // Provide user feedback of current play mode (full, 20s, auto, book).
       displayStatus(mode); 
 
+      // If entering book mode, go to chapter 1 and clear pause state.
+      if (mode == Book) {
+        DFPlayer.stop();
+        wait_ms(100);
+
+        paused = false;        
+        file = 1;
+
+        // Save in EEPROM, to restore after next power cycle.
+        EEPROM.update(fileAddr, file);
+      }
+      
       state = 10;
       break;
     }
@@ -304,14 +382,20 @@ void loop()
   case 4 : // 2nd button release.
     //  ..  = Play previous song.
     
-    // If no more input, play previous song.
+    // If no more input, play previous song (Book mode only).
     if (millis() > timer1) {
-      DFPlayer.stop();
-      playPrev();
 
-      // Start song playtime timer and clear pause state.
-      timer2 = millis() + playTime;
-      paused = false;
+      if (mode == Book) {
+        DFPlayer.stop();
+        wait_ms(100);
+        playPrev();
+
+        // Save in EEPROM, to restore after next power cycle.
+        EEPROM.update(fileAddr, file);
+          
+        // Clear pause state.
+        paused = false;
+      }
       
       digitalWrite(LED_status, LED_on);
       state = 0;
@@ -332,14 +416,14 @@ void loop()
 
     // If no more input, adjust interval setting.
     if (millis() > timer1) {
-      interval = ++interval % 3;
+      interval = ++interval % 4;
 
-      // Save user setting in EEPROM, to use following next power cycle.
-      EEPROM.update(3, interval);
+      // Save in EEPROM, to restore after next power cycle.
+      EEPROM.update(intAddr, interval);
 
       // Provide user feedback of interval time.
       displayStatus(interval);
-
+    
       state = 10;
       break; 
     }
@@ -360,8 +444,8 @@ void loop()
     if (millis() > timer1) {
       volume = ++volume % 3;
 
-      // Save user setting in EEPROM, to use following next power cycle.
-      EEPROM.update(2, volume);
+      // Save in EEPROM, to restore after next power cycle.
+      EEPROM.update(volAddr, volume);
 
       // Provide user feedback of current volume level (low, med, high).
       displayStatus(volume); 
@@ -400,23 +484,30 @@ void loop()
     break;
     
   case 8 : // 4th button release.
-    //  ....  = Reset all user settings to their default state.
+    //  ....  = Reset all user settings (except file) to their default state.
   
     // If no more input, reset user settings..
     if (millis() > timer1) {
       mode = modeReset;
       interval = intvlReset;
       volume = volReset;
+      file = 1;
 
-      // Save user settings in EEPROM, to use following next power cycle.
-      EEPROM.write(1, mode);
-      EEPROM.write(2, volume);
-      EEPROM.write(3, interval);
+      // Save in EEPROM, to restore after next power cycle.
+      EEPROM.write(modeAddr, mode);
+      EEPROM.write(volAddr, volume);
+      EEPROM.write(intAddr, interval);
+      EEPROM.write(fileAddr, file);
 
       // Provide user feedback of reset.
       displayStatus(0); 
-      DFPlayer.volume(volArray[volume]);
 
+      // Stop playing current file, and reset the volume.
+      DFPlayer.stop();
+      wait_ms(100);
+      DFPlayer.volume(volArray[volume]);
+      wait_ms(100);
+      
       digitalWrite(LED_status, LED_on);
       state = 0;
       break; 
@@ -430,14 +521,14 @@ void loop()
     
     break;
     
-  case 10 : // Wait for button release after long press.      
+  case 10 : // Wait for button release after long press.
     // If button release, reset state to 0.
     if (digitalRead(Button_switch) == OFF) {
       wait_ms(debounce);
 
       // Restart the autoplay delay interval timer. This is only used when
       // the autoplay mode is enabled.
-      timer3 = millis() + intArray[interval] * 1000;
+      timer3 = millis() + (long) intArray[interval] * 1000;
       
       digitalWrite(LED_status, LED_on);
       state = 0;
@@ -447,9 +538,11 @@ void loop()
   }
 
   // ------------------------------------------------------------------ 
-  
+  // Items to check and perform periodically, regardless of state.
+  // ------------------------------------------------------------------ 
+    
   switch(mode) {
-  case 1 : // 20s mode.
+  case Short : // 20s mode.
     // If playing song in 20s mode and song still playing...
     if (digitalRead(DFPlayer_busy) == ON)
   
@@ -460,25 +553,27 @@ void loop()
 
         // Stop playing and reset the volume.
         DFPlayer.stop();
-        DFPlayer.volume(volArray[volume]); 
+        wait_ms(100);
+        DFPlayer.volume(volArray[volume]);
+        wait_ms(100);
       
         digitalWrite(LED_status, LED_on);
       }
     break;
 
-  case 3 : // Autoplay mode.
+  case Auto : // Autoplay mode.
     // If in autoplay mode, no button pressed and in state 0...
     if (digitalRead(Button_switch) == OFF and state == 0) {
       // Play next song after reaching interval, then set playTime.
 
       if (digitalRead(DFPlayer_busy) == OFF and millis() > timer3) {
-        playRandom();
+        playRandom(fileCount);
         timer2 = millis() + playTime;
       }
 
       // Initialize timer3 after song ends, and reset paused status.
       if (digitalRead(DFPlayer_busy) == ON) {
-        timer3 = millis() + intArray[interval] * 1000;
+        timer3 = millis() + (long) intArray[interval] * 1000;
         paused = false;
       }
     }
@@ -496,72 +591,60 @@ void wait_ms(int Time) {
   while(millis() < waitTimer);
 }
 
-byte readFileCount() {
-  // Since some decoders have no functions which return a value, discover the
-  // file count by playing the next file until nothing is played, indicating
-  // we've advanced beyond the last file.
+void playRandom(byte count) {
+  // Play a random file, with adjustment when only odd files are accepted
+  // on the DFPlayer Mini module.
   
-  int count = 0;
-  
-  // Turn the volume down to eliminate audio clipping sounds.
-  DFPlayer.volume(0);
+  byte myFile;
+
   wait_ms(100);
-   
-  do {
-    play(++count);
-  } while (digitalRead(DFPlayer_busy) == ON);    
   
+  if (allFiles)
+    myFile = randomNumber(count) + 1;
+  else
+    // Find an odd file number between 1 and count - 1, discarding all
+    // even numbers returned.
+    do {
+      myFile = randomNumber(count - 1) + 1;
+    } while (myFile % 2 == 0);
+    
+  DFPlayer.play(myFile);
   wait_ms(100);
-
-  // Restore the normal volume setting and exit.
-  DFPlayer.volume(volArray[volume]);
-  return --count;
-}
-
-void playRandom() {
-  // If the player can't play the file, try again. 
-
-  int file;
-  
-  wait_ms(100);
-   
-  while (digitalRead(DFPlayer_busy) == OFF) {
-    file = randomNumber(fileCount) + 1;
-    play(file);
-  }
-}
-
-void play(int file) {
-  // If the player can't play the file, try again. If the file
-  // is not available after 0.2s, stop trying.
-  
-  unsigned long timer = millis() + 200;
-  
-  do {
-    DFPlayer.play(file); 
-  } while (millis() < timer && digitalRead(DFPlayer_busy) == OFF); 
 }
 
 void playNext() {
-  // If the player can't play the file, try again.
+  // Used for the Book mode, to advance to the next chapter of an
+  // audio book saved on the Micro SD card.
 
   wait_ms(100);
+  DFPlayer.play(file);
+    
+  // Audio book chapters are located on odd file numbers. Increment
+  // and make sure the file id doesn't go out of bounds.
+  file += 2;
   
-  do {
-    DFPlayer.next();
-    wait_ms(200);
-  } while (digitalRead(DFPlayer_busy) == OFF);
+  if (file > fileCount )
+    file = 1;
+    
+  wait_ms(100);
 }
 
 void playPrev() {
-  // If the player can't play the file, try again.
+  // Used for the Book mode, to advance to the previous chapter of an
+  // audio book saved on the Micro SD card.
 
   wait_ms(100);
-  
-  do {
-    DFPlayer.previous();
-    wait_ms(200);
-  } while (digitalRead(DFPlayer_busy) == OFF);
+  DFPlayer.play(file);
+    
+  // Audio book chapters are located on odd file numbers. Decrement
+  // and make sure the file id doesn't go out of bounds.
+
+  if (file < 3)
+    file = fileCount - 1;
+  else
+    file -= 2;
+
+  wait_ms(100);
 }
 
 void fadeVolumeDown(byte maxVolume) {
@@ -600,7 +683,7 @@ int randomNumber(byte n) {
 
   static byte randomTable[N];      // table of random numbers.
   static byte pos = n;             // position of next random number.
-  static byte last = n;            // last random number.
+  static byte prev = n;            // previous random number.
   byte j, temp;                    // used for shuffle routine.
 
   // Limit index values to declared array size.
@@ -624,12 +707,12 @@ int randomNumber(byte n) {
     pos = 0;
     
     // After shuffle, there is a possibility that the next random number 
-    // drawn will match the last one. If this occurs, discard and get 
+    // drawn will match the previous one. If this occurs, discard and get 
     // next number from the table. 
-    if (n > 1 and randomTable[pos] == last)
+    if (n > 1 and randomTable[pos] == prev)
       pos++; 
     }
 
-  last = randomTable[pos];        // save last random number.
+  prev = randomTable[pos];        // save last random number.
   return randomTable[pos++];      // return random number and increment pointer.
 }
