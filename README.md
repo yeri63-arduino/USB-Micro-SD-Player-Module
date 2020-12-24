@@ -20,7 +20,7 @@ Key: (.) = Short Press, (-) = Long Press, (*) = default
 | .. | Play previous chapter (book mode only). |
 | .- | Change play mode (full song*, 20 sec, auto, book). |
 | ... | Change volume (low, med*, high) in all modes. |
-| ..- | Change interval (5 sec, 10 sec*, 20 sec) used auto play mode. |
+| ..- | Change interval (5 sec, 10 sec*, 20 sec) used in auto play mode. |
 | .... | Reset user settings (play mode, volume, interval and chapter). |
 
 Module status and user settings are displayed via an onboard Status LED.
