@@ -17,8 +17,8 @@ Key: (.) = Short Press, (-) = Long Press, (*) = default
 | :---: | :--- |
 | . | Play next song. |
 | - | Stop playing song, and fade to silence. |
-| .. | Play previous song. |
-| .- | Change play mode (full song*, 20 sec, book, auto). |
+| .. | Play previous song (book mode only). |
+| .- | Change play mode (full song*, 20 sec, auto, book). |
 | ... | Change volume (low, med*, high) in all modes. |
 | ..- | Change interval (5 sec, 10 sec*, 20 sec) in autoplay mode. |
 | .... | Reset user settings (play mode, volume, and interval). |
@@ -38,5 +38,5 @@ The blink code reflects the last command entered. Locate the column of the comma
 | :---: | :---: |  :---: | :---: | :---: |
 | 1 | full song | low | 5 sec | ok |
 | 2 | 20 sec | med | 10 sec | - |
-| 3 | book | high | 30 sec | - |
-| 4 | auto | - | 60 sec | - |
+| 3 | auto | high | 30 sec | - |
+| 4 | book | - | 60 sec | - |
