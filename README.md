@@ -15,24 +15,24 @@ Module accepts commands by waving hand over the photocell, or pressing push butt
 Key: (.) = Short Press, (-) = Long Press, (*) = default
 | Input | Command |
 | :---: | :--- |
-| . | Play next song. |
-| - | Stop playing song, and fade to silence. |
-| .. | Play previous song (book mode only). |
+| . | Play next song or chapter. |
+| - | Stop playing song or chapter, and fade to silence. |
+| .. | Play previous chapter (book mode only). |
 | .- | Change play mode (full song*, 20 sec, auto, book). |
 | ... | Change volume (low, med*, high) in all modes. |
-| ..- | Change interval (5 sec, 10 sec*, 20 sec) in autoplay mode. |
-| .... | Reset user settings (play mode, volume, and interval). |
+| ..- | Change interval (5 sec, 10 sec*, 20 sec) used auto play mode. |
+| .... | Reset user settings (play mode, volume, interval and chapter). |
 
 Module status and user settings are displayed via an onboard Status LED.
 
 | Pattern | Description |
 | :---: | :--- |
 | Blinking | Error, unable to read Micro SD card. |
-| Steady On | Ready for new command, or playing song. |
+| Steady On | Ready for new command, or playing audio. |
 | Steady Off | Processing last command, or sleeping. |
 | n blinks | Used to show current setting or completion of last command. |
 
-The blink code reflects the last command entered. Locate the column of the command entered, and then move down to the row matching the number of blinks observed to see what information was provided.
+The blink code provides the results from the last command entered. Locate the column of the command entered, and then move down to the row matching the number of blinks observed to see what information was provided.
 
 | n | Play Mode | Volume | Interval | Reset |
 | :---: | :---: |  :---: | :---: | :---: |
