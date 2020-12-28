@@ -17,10 +17,10 @@ Key: (.) = Short Press, (-) = Long Press, (*) = default
 | :---: | :--- |
 | . | Play next song or chapter. |
 | - | Stop playing song or chapter, and fade to silence. |
-| .. | Play previous chapter (book mode only). |
-| .- | Change play mode (full song*, 20 sec, auto, book). |
+| .. | Play previous song or chapter. |
+| .- | Change play mode (full song*, 20 sec, book, auto). |
 | ... | Change volume (low, med*, high) in all modes. |
-| ..- | Change interval (5 sec, 10 sec*, 20 sec) used in auto play mode. |
+| ..- | Change interval (5 sec, 10 sec*, 30 sec, 1 min) used in auto play mode. |
 | .... | Reset user settings (play mode, volume, interval and chapter). |
 
 Module status and user settings are displayed via an onboard Status LED.
@@ -39,4 +39,4 @@ The blink code provides the results from the last command entered. Locate the co
 | 1 | full song | low | 5 sec | ok |
 | 2 | 20 sec | med | 10 sec | - |
 | 3 | auto | high | 30 sec | - |
-| 4 | book | - | 60 sec | - |
+| 4 | book | - | 1 min | - |
