@@ -21,7 +21,8 @@ Key: (.) = Short Press, (-) = Long Press, (*) = default
 | .- | Change play mode (full song*, 20 sec, book, auto). |
 | ... | Change volume (low, med*, high) in all modes. |
 | ..- | Change interval (5 sec, 10 sec*, 30 sec, 1 min) used in auto play mode. |
-| .... | Reset user settings (play mode, volume, interval and chapter). |
+| .... | Reset user settings (play mode, volume, interval, count and chapter). |
+| ...- | Change count (1, 2, 3, unlimited) songs in auto play mode. |
 
 Module status and user settings are displayed via an onboard Status LED.
 
@@ -34,9 +35,9 @@ Module status and user settings are displayed via an onboard Status LED.
 
 The blink code provides the results from the last command entered. Locate the column of the command entered, and then move down to the row matching the number of blinks observed to see what information was provided.
 
-| n | Play Mode | Volume | Interval | Reset |
-| :---: | :---: |  :---: | :---: | :---: |
-| 1 | full song | low | 5 sec | ok |
-| 2 | 20 sec | med | 10 sec | - |
-| 3 | auto | high | 30 sec | - |
-| 4 | book | - | 1 min | - |
+| n | Play Mode | Volume | Interval | Count | Reset |
+| :---: | :---: |  :---: | :---: | :---: | :---: |
+| 1 | full song | low | 5 sec | 1 | ok |
+| 2 | 20 sec | med | 10 sec | 2 | - |
+| 3 | auto | high | 30 sec | 3 | - |
+| 4 | book | - | 1 min | Unlimited | - |
