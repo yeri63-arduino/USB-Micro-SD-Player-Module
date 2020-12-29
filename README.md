@@ -18,7 +18,7 @@ Key: (.) = Short Press, (-) = Long Press, (*) = default
 | . | Play next song or chapter. |
 | - | Stop playing song or chapter, and fade to silence. |
 | .. | Play previous song or chapter. |
-| .- | Change play mode (full song*, 20 sec, book, auto). |
+| .- | Change play mode (full song*, 20 sec, book, auto play). |
 | ... | Change volume (low, med*, high) in all modes. |
 | ..- | Change interval (5 sec, 10 sec*, 30 sec, 1 min) used in auto play mode. |
 | .... | Reset user settings (play mode, volume, interval, count and chapter). |
