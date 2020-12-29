@@ -1,7 +1,7 @@
 /*
  Program: USB Micro SD Player Module
-    Date: 24-Dec-2020
-Revision: 24b
+    Date: 28-Dec-2020
+Revision: 24d
   Author: Gerry Walterscheid, jr.
 
 MP3-Player using DFPlayer mini, ATtiny85, USB, photoresistor or push button switch, 
@@ -29,10 +29,10 @@ Key . = Short Press, - = Long Press, * = default
  -    = Stop playing song, and fade to silence.
 
  ..   = Play previous song.
- .-   = Change play mode (full song, 20 sec, book, auto).
+ .-   = Change play mode (full*, 20 sec, book, auto).
 
  ...  = Change volume (low, med*, high) in single and 20 sec mode.
- ..-  = Change interval (5s, 10s, 30s, 60s) in autoplay mode.
+ ..-  = Change interval (5s, 10s*, 30s, 60s) in autoplay mode.
 
  .... = Reset user settings (play mode, volume, and interval).
  
@@ -73,36 +73,47 @@ The circuit:
 
 Updates in this version:
 
-- Updated code to be compatible with JL AA20HFj616-94 decoder on the 
-  DFPlayer Mini module.
+- Fixed skipping problem when file numbering doesn't skip even values.
 
-- When entering Book mode, reset the file counter to start at
-  Chapter 1. 
-  
-- Created aliases for the different modes to make these easier to see 
-  within the code.
+- Re-added previous command for non-Book modes. It just plays the
+  previous or prior song.
 
-- Following a reset, stop playing file.
+- Successfully tested both book mode and non-book mode with small and
+  large files.
 
-- Update file variable everytime a new chapter is started, and save
-  to EEPROM to survive a power cycle.
+- Went back to original sequence of modes, ie. single, 20-sec, book, auto.
 
-- Limit the sequential functions playNext() and playPrev() to Book mode only.
+- If copying files from MAC OSX onto the Micro SD card, using an adapter,
+  be sure to run dot_clean command on the folder to remove any ._ files
+  that sometimes get added during the copy process.
 
-- Change the playPrev() and playNext() functions so that the file is played
-  1st, and then incremented, so that the book won't start playing until a
-  new play command is issued.
+  $ dot_clean /Volumes/MUSIC
 
-- On startup, check if in Book mode, to adjust file pointer to point to the
-  same chapter that was playing prior to shutdown.
+- The play order is determined by the order that the files are copied onto
+  the Micro SD card. Copy them a few at a time when using the module to
+  listen to books, to guarantee the chapter order is maintained. Do this
+  1 at a time using the USB data cable, and perhaps up to 10 at a time 
+  using a Micro SD adapter.
 
-- Fix issues where the song volume is sometimes very low, probably due to the
-  next command being ignored following a pause() or stop(). Added short time
-  delay, 100 ms to fix.
+- Files can be copied from a computer to the Micro SD card without a Micro
+  card adapter, by plugging the module into the computer using a USB data
+  cable (not charge-only cable, since there are no data lines). The module 
+  LED continue to flash twice, indicating that it is in data transfer mode,
+  inhibiting all play operations.
 
-- Fixed 60 sec delay issue by adding (long) cast to prevent int rollover with
-  millis() future time values greater than 32,767 which became -32,768. Unless
-  math variables are cast, they will assume the type int.
+- Files copied using a USB data cable will work, but is much slower using this
+  method vs. a Micro SD card. If there are only a few files, then this shouldn't
+  be a big deal. Otherwise, use a Micro SD card adapter for faster file
+  transfer.
+
+- The module can be powered from a computer using a USB charge-only cable. 
+  A data cable won't work, as the module acts like a USB storage device, 
+  inhibiting any attempts to play audio files.
+
+- Updated selection of Book mode to not start playing immediately, so that 
+  all modes would act the same, ie. not immediately being playing an audio
+  file. This allows the final mode to be selected, without triggering an
+  audio file while moving through previous modes.
   
 */
 
@@ -122,21 +133,22 @@ Updates in this version:
 #define ON LOW                        // Dark or button press.
 #define OFF HIGH                      // Light or button release.
 
-#define TRUE 1                        // Boolean constant
-#define FALSE 0                       // Boolean constant
-
 #define N 128                         // Max number of audio files.
 
 #define Full 0                        // Full song mode
 #define Short 1                       // 20 sec song mode
-#define Auto 2                        // Auto play mode
-#define Book 3                        // Book mode
+#define Book 2                        // Book mode
+#define Auto 3                        // Auto play mode
 
 #define seedAddr 0                    // EEPROM address for random seed.
 #define modeAddr 1                    // EEPROM address for mode.
 #define volAddr 2                     // EEPROM address for volume.
 #define intAddr 3                     // EEPROM address for interval.
 #define fileAddr 4                    // EEPROM address for file.
+
+#define modeCount 4                   // Number of possible modes.
+#define volCount 3                    // Number of possible volume settings.
+#define intvlCount 4                  // Number of possible interval settings.
 
 unsigned long timer1;                 // Time since last button press/release.
 unsigned long timer2;                 // Time playing audio file.
@@ -147,8 +159,11 @@ byte fadeTime = 3000;                 // 3 sec audio fade.
 byte debounce = 20;                   // 20 ms debounce for switch.
 
 byte fileCount;                       // Number of audio files on Micro SD card.
-byte file;                            // Last audio file played.
+byte file;                            // Next audio file to play.
+byte prevFile;                        // Previous audio file played.
 byte state = 0;                       // State machine variable.
+byte fileStep = 1;                    // File step for increment and decrement.
+byte temp;                            // Used to swap file with prevFile.
 
 byte modeReset = 0;                   // Play mode (0 = full, 20s, auto, book).
 byte mode;
@@ -162,7 +177,6 @@ byte intvlReset = 1;                  // Init interval setting (10s);
 byte interval;
 
 bool paused = false;                  // State of current song.
-bool allFiles = false;                // State of valid file numbers for this Micro SD.
 
 SoftwareSerial SoftSerial(DFPlayer_Rx, DFPlayer_Tx);
 DFRobotDFPlayerMini DFPlayer;
@@ -186,9 +200,9 @@ void setup()
 
   // Restore data saved in EEPROM. Use mode function to limit range to
   // acceptable values.
-  mode = EEPROM.read(modeAddr) % 4;
-  volume = EEPROM.read(volAddr) % 3;
-  interval = EEPROM.read(intAddr) % 3;
+  mode = EEPROM.read(modeAddr) % modeCount;
+  volume = EEPROM.read(volAddr) % volCount;
+  interval = EEPROM.read(intAddr) % intvlCount;
   file = EEPROM.read(fileAddr);
 
   // Save in EEPROM, to restore after next power cycle.
@@ -213,28 +227,24 @@ void setup()
   fileCount = DFPlayer.readFileCounts();
 
   // Determine if even numbered files are unavailable, which appears
-  // to occur with large files, ie. audio books.
+  // to occur with large files, ie. audio books. Change fileStep to 
+  // two to select only odd numbered files.
   DFPlayer.volume(0);
-
+  
   DFPlayer.play(2);
   DFPlayer.stop();
-  wait_ms(100);
+  wait_ms(200);
 
   if (DFPlayer.readCurrentFileNumber() != 2)
-    allFiles = FALSE;
+    fileStep = 2;
 
   // If booting in book mode, decrement the file so that the
   // DFPlayer module will resume on the same chapter it was at
   // prior to shutdown.
   if (mode == Book) {
-
-    // Audio book chapters are located on odd file numbers. 
-    // Decrement and make sure the file id doesn't go out of 
-    // bounds.
-    if (file < 3)
-      file = fileCount - 1;
-    else
-      file -= 2;
+    file -= fileStep;
+    if (file < 1)
+      file = fileCount;
   }
       
   // Initialize player volume.
@@ -313,7 +323,7 @@ void loop()
         DFPlayer.stop();
         wait_ms(100);
 
-        // If in book mode, play next song. Otherwise pick random song.
+        // If in book mode, play next chapter. Otherwise pick random song.
         if (mode == Book) {
           playNext();
           
@@ -346,7 +356,7 @@ void loop()
 
     // If no more input, change play mode.
     if (millis() > timer1) {
-      mode = ++mode % 4; 
+      mode = ++mode % modeCount; 
 
       /// Save in EEPROM, to restore after next power cycle.
       EEPROM.update(modeAddr, mode);
@@ -354,16 +364,24 @@ void loop()
       // Provide user feedback of current play mode (full, 20s, auto, book).
       displayStatus(mode); 
 
-      // If entering book mode, go to chapter 1 and clear pause state.
+      // If entering book mode, go to chapter 1 and pause.
       if (mode == Book) {
-        DFPlayer.stop();
-        wait_ms(100);
-
-        paused = false;        
         file = 1;
+
+        DFPlayer.volume(0);
+        DFPlayer.play(file);
+
+        // Pause the player and reset the volume.
+        DFPlayer.pause();
+        wait_ms(100);
+        DFPlayer.volume(volArray[volume]);
+        wait_ms(100);
 
         // Save in EEPROM, to restore after next power cycle.
         EEPROM.update(fileAddr, file);
+
+        // Set pause state.
+        paused = true;
       }
       
       state = 10;
@@ -392,10 +410,22 @@ void loop()
 
         // Save in EEPROM, to restore after next power cycle.
         EEPROM.update(fileAddr, file);
-          
-        // Clear pause state.
-        paused = false;
       }
+     else {
+       // Save the current file as the next previous file.
+       temp = file;
+       file = prevFile;
+       prevFile = temp;
+
+       DFPlayer.play(file);
+       wait_ms(100);
+
+      // Start song playtime timer.
+      timer2 = millis() + playTime;
+      }
+
+      // Clear pause state.
+      paused = false;
       
       digitalWrite(LED_status, LED_on);
       state = 0;
@@ -416,7 +446,7 @@ void loop()
 
     // If no more input, adjust interval setting.
     if (millis() > timer1) {
-      interval = ++interval % 4;
+      interval = ++interval % intvlCount;
 
       // Save in EEPROM, to restore after next power cycle.
       EEPROM.update(intAddr, interval);
@@ -442,7 +472,7 @@ void loop()
   
     // If no more input, change the volume settings.
     if (millis() > timer1) {
-      volume = ++volume % 3;
+      volume = ++volume % volCount;
 
       // Save in EEPROM, to restore after next power cycle.
       EEPROM.update(volAddr, volume);
@@ -593,57 +623,50 @@ void wait_ms(int Time) {
 
 void playRandom(byte count) {
   // Play a random file, with adjustment when only odd files are accepted
-  // on the DFPlayer Mini module.
+  // on the DFPlayer Mini module. Don;t play the same file twice in a row.
   
-  byte myFile;
-
   wait_ms(100);
-  
-  if (allFiles)
-    myFile = randomNumber(count) + 1;
-  else
-    // Find an odd file number between 1 and count - 1, discarding all
-    // even numbers returned.
-    do {
-      myFile = randomNumber(count - 1) + 1;
-    } while (myFile % 2 == 0);
+  prevFile = file;
     
-  DFPlayer.play(myFile);
+  do {
+    file = randomNumber(fileCount) + 1;
+
+    if (fileStep == 2 and file % 2 == 0)
+      file++;
+      
+  } while (file == prevFile or file > fileCount);
+   
+  DFPlayer.play(file);
   wait_ms(100);
 }
 
 void playNext() {
-  // Used for the Book mode, to advance to the next chapter of an
-  // audio book saved on the Micro SD card.
+  // Play the next audio file from the Micro SD card.
 
   wait_ms(100);
-  DFPlayer.play(file);
-    
-  // Audio book chapters are located on odd file numbers. Increment
-  // and make sure the file id doesn't go out of bounds.
-  file += 2;
-  
-  if (file > fileCount )
+
+  file += fileStep;
+
+  // Make sure the file id doesn't go out of bounds.
+  if (file > fileCount)
     file = 1;
-    
+
+  DFPlayer.play(file);
   wait_ms(100);
 }
 
 void playPrev() {
-  // Used for the Book mode, to advance to the previous chapter of an
-  // audio book saved on the Micro SD card.
+  // Play the previous audio file from the Micro SD card.
 
-  wait_ms(100);
-  DFPlayer.play(file);
-    
-  // Audio book chapters are located on odd file numbers. Decrement
-  // and make sure the file id doesn't go out of bounds.
+  wait_ms(100);   
 
-  if (file < 3)
-    file = fileCount - 1;
+  // Make sure the file id doesn't go out of bounds.
+  if (file == 1)
+    file = fileCount - fileStep + 1;
   else
-    file -= 2;
-
+    file -= fileStep;
+  
+  DFPlayer.play(file); 
   wait_ms(100);
 }
 
@@ -653,7 +676,7 @@ void fadeVolumeDown(byte maxVolume) {
   int slice;
   slice = (fadeTime / maxVolume) * 10;
   
-  for (int vol=maxVolume; vol > 0; vol--) {
+  for (int vol=maxVolume; vol >= 0; vol--) {
     wait_ms(slice);
     DFPlayer.volume(vol);
   }
