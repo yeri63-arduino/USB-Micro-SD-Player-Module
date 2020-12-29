@@ -1,7 +1,7 @@
 /*
  Program: USB Micro SD Player Module
-    Date: 28-Dec-2020
-Revision: 24d
+    Date: 29-Dec-2020
+Revision: 24e
   Author: Gerry Walterscheid, jr.
 
 MP3-Player using DFPlayer mini, ATtiny85, USB, photoresistor or push button switch, 
@@ -35,6 +35,7 @@ Key . = Short Press, - = Long Press, * = default
  ..-  = Change interval (5s, 10s*, 30s, 60s) in autoplay mode.
 
  .... = Reset user settings (play mode, volume, and interval).
+ ...- = Change count (1, 2, 3, unlimited*) in auto mode.
  
   Module Status (via LED):
 
@@ -73,47 +74,8 @@ The circuit:
 
 Updates in this version:
 
-- Fixed skipping problem when file numbering doesn't skip even values.
-
-- Re-added previous command for non-Book modes. It just plays the
-  previous or prior song.
-
-- Successfully tested both book mode and non-book mode with small and
-  large files.
-
-- Went back to original sequence of modes, ie. single, 20-sec, book, auto.
-
-- If copying files from MAC OSX onto the Micro SD card, using an adapter,
-  be sure to run dot_clean command on the folder to remove any ._ files
-  that sometimes get added during the copy process.
-
-  $ dot_clean /Volumes/MUSIC
-
-- The play order is determined by the order that the files are copied onto
-  the Micro SD card. Copy them a few at a time when using the module to
-  listen to books, to guarantee the chapter order is maintained. Do this
-  1 at a time using the USB data cable, and perhaps up to 10 at a time 
-  using a Micro SD adapter.
-
-- Files can be copied from a computer to the Micro SD card without a Micro
-  card adapter, by plugging the module into the computer using a USB data
-  cable (not charge-only cable, since there are no data lines). The module 
-  LED continue to flash twice, indicating that it is in data transfer mode,
-  inhibiting all play operations.
-
-- Files copied using a USB data cable will work, but is much slower using this
-  method vs. a Micro SD card. If there are only a few files, then this shouldn't
-  be a big deal. Otherwise, use a Micro SD card adapter for faster file
-  transfer.
-
-- The module can be powered from a computer using a USB charge-only cable. 
-  A data cable won't work, as the module acts like a USB storage device, 
-  inhibiting any attempts to play audio files.
-
-- Updated selection of Book mode to not start playing immediately, so that 
-  all modes would act the same, ie. not immediately being playing an audio
-  file. This allows the final mode to be selected, without triggering an
-  audio file while moving through previous modes.
+- Added count setting, to limit number of times a new song is played, to handle
+  scenarios where unit was left playing songs when no one was in the room.
   
 */
 
@@ -141,14 +103,16 @@ Updates in this version:
 #define Auto 3                        // Auto play mode
 
 #define seedAddr 0                    // EEPROM address for random seed.
-#define modeAddr 1                    // EEPROM address for mode.
-#define volAddr 2                     // EEPROM address for volume.
-#define intAddr 3                     // EEPROM address for interval.
-#define fileAddr 4                    // EEPROM address for file.
+#define fileAddr 1                    // EEPROM address for file.
+#define modeAddr 2                    // EEPROM address for mode.
+#define volAddr 3                     // EEPROM address for volume.
+#define intAddr 4                     // EEPROM address for interval.
+#define cntAddr 5                     // EEPROM address for count.
 
 #define modeCount 4                   // Number of possible modes.
 #define volCount 3                    // Number of possible volume settings.
 #define intvlCount 4                  // Number of possible interval settings.
+#define cntCount 4                    // Number of possible count settings.
 
 unsigned long timer1;                 // Time since last button press/release.
 unsigned long timer2;                 // Time playing audio file.
@@ -164,17 +128,22 @@ byte prevFile;                        // Previous audio file played.
 byte state = 0;                       // State machine variable.
 byte fileStep = 1;                    // File step for increment and decrement.
 byte temp;                            // Used to swap file with prevFile.
+byte playCount;                       // Number of times played in auto mode.
 
 byte modeReset = 0;                   // Play mode (0 = full, 20s, auto, book).
 byte mode;
 
-byte volArray[3] = { 15, 23, 30 };    // Volume settings (low, med, high).
+byte volArray[3] = { 10, 18, 25 };    // Volume settings (low, med, high).
 byte volReset = 1;                    // Init volume setting (1 = medium).
 byte volume;
 
 byte intArray[4] = { 5, 10, 30, 60 }; // Interval settings (5s, 10s, 30s, 60s).
-byte intvlReset = 1;                  // Init interval setting (10s);
+byte intvlReset = 1;                  // Init interval setting (10s).
 byte interval;
+
+byte cntArray[4] = { 1, 2, 3, 0 };    // Counter settings (1, 2, 3, unlimited) times.
+byte cntReset = 3;                    // Init counter setting (unlimited).
+byte count;
 
 bool paused = false;                  // State of current song.
 
@@ -200,10 +169,11 @@ void setup()
 
   // Restore data saved in EEPROM. Use mode function to limit range to
   // acceptable values.
+  file = EEPROM.read(fileAddr);
   mode = EEPROM.read(modeAddr) % modeCount;
   volume = EEPROM.read(volAddr) % volCount;
   interval = EEPROM.read(intAddr) % intvlCount;
-  file = EEPROM.read(fileAddr);
+  count = EEPROM.read(cntAddr) % cntCount;
 
   // Save in EEPROM, to restore after next power cycle.
   EEPROM.write(seedAddr, seed + random(10));
@@ -331,11 +301,12 @@ void loop()
           EEPROM.update(fileAddr, file);
         }
         else
-          playRandom(fileCount);
+          playRandom();
       }
 
-      // Start song playtime timer and clear pause state.
+      // Start song playtime timer and reset playCount and pause state.
       timer2 = millis() + playTime;
+      playCount = 0;
       paused = false;
             
       digitalWrite(LED_status, LED_on);
@@ -424,7 +395,8 @@ void loop()
       timer2 = millis() + playTime;
       }
 
-      // Clear pause state.
+      // Reset play count and pause state.
+      playCount = 0;
       paused = false;
       
       digitalWrite(LED_status, LED_on);
@@ -496,10 +468,20 @@ void loop()
     break;
 
   case 7 : // 4rd button press.
-    //  ...- = Not used.
+    //  ...- = Count, used to determine how many times to play audio 
+    //         when in auto mode.
 
     // If no more input, ignore and wait for button release.
     if (millis() > timer1) {
+      count = ++count % cntCount;
+      playCount = 0;
+
+      // Save in EEPROM, to restore after next power cycle.
+      EEPROM.update(cntAddr, count);
+
+      // Provide user feedback of play count limit.
+      displayStatus(count);
+    
       state = 10;
       break; 
     }
@@ -518,16 +500,18 @@ void loop()
   
     // If no more input, reset user settings..
     if (millis() > timer1) {
+      file = 0;
       mode = modeReset;
       interval = intvlReset;
       volume = volReset;
-      file = 1;
+      count = cntReset;
 
       // Save in EEPROM, to restore after next power cycle.
+      EEPROM.write(fileAddr, file);
       EEPROM.write(modeAddr, mode);
       EEPROM.write(volAddr, volume);
       EEPROM.write(intAddr, interval);
-      EEPROM.write(fileAddr, file);
+      EEPROM.write(cntAddr, count);
 
       // Provide user feedback of reset.
       displayStatus(0); 
@@ -594,12 +578,18 @@ void loop()
   case Auto : // Autoplay mode.
     // If in autoplay mode, no button pressed and in state 0...
     if (digitalRead(Button_switch) == OFF and state == 0) {
+      
       // Play next song after reaching interval, then set playTime.
-
-      if (digitalRead(DFPlayer_busy) == OFF and millis() > timer3) {
-        playRandom(fileCount);
-        timer2 = millis() + playTime;
-      }
+      if (digitalRead(DFPlayer_busy) == OFF and millis() > timer3)
+      
+        // Check the play counter to determine whether to play audio.
+        if (cntArray[count] == 0 or playCount < cntArray[count]) {
+          playRandom();
+          playCount++;
+          
+          timer2 = millis() + playTime;
+          paused = false;
+        }
 
       // Initialize timer3 after song ends, and reset paused status.
       if (digitalRead(DFPlayer_busy) == ON) {
@@ -621,7 +611,7 @@ void wait_ms(int Time) {
   while(millis() < waitTimer);
 }
 
-void playRandom(byte count) {
+void playRandom() {
   // Play a random file, with adjustment when only odd files are accepted
   // on the DFPlayer Mini module. Don;t play the same file twice in a row.
   
