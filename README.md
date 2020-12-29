@@ -22,7 +22,7 @@ Key: (.) = Short Press, (-) = Long Press, (*) = default
 | ... | Change volume (low, med*, high) in all modes. |
 | ..- | Change interval (5 sec, 10 sec*, 30 sec, 1 min) used in auto play mode. |
 | .... | Reset user settings (play mode, volume, interval, count and chapter). |
-| ...- | Change count (1, 2, 3, unlimited) songs in auto play mode. |
+| ...- | Change count (1, 2, 3, unlimited*) songs in auto play mode. |
 
 Module status and user settings are displayed via an onboard Status LED.
 
