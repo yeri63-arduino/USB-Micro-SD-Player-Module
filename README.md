@@ -2,6 +2,9 @@
 A compact, USB powered, micro SD audio player module.
 
 Features:
+ - Multiple play modes (full song, 20 sec, book, auto play).
+ - Adjustable volume settings (low, med, high).
+ - Intervalometer to control how often and how many songs are played.
  - User input available using either photocell or push button switch.
  - Module status (Error, Ready, Play Mode, ect.) via onboard status LED.
  - User settings are saved between power cycles, with option to reset.
