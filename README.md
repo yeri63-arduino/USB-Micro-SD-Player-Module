@@ -42,5 +42,5 @@ The blink code provides the results from the last command entered. Locate the co
 | :---: | :---: |  :---: | :---: | :---: | :---: |
 | 1 | full song | low | 5 sec | 1 | ok |
 | 2 | 20 sec | med | 10 sec | 2 | - |
-| 3 | auto | high | 30 sec | 3 | - |
-| 4 | book | - | 1 min | Unlimited | - |
+| 3 | book | - | 1 min | 3 | - |
+| 4 | auto | high | 30 sec | Unlimited | - |
