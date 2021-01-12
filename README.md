@@ -2,7 +2,7 @@
 A compact, USB powered, micro SD audio player module.
 
 Features:
- - Multiple play modes (full song, 20 sec, book).
+ - Multiple play modes (full, short, book).
  - Adjustable volume settings (low, med, high).
  - Intervalometer to control how often and how many songs are played.
  - User input available using either photocell or push button switch.
@@ -21,7 +21,7 @@ Key: (.) = Short Press, (-) = Long Press, (*) = default
 | . | Play next song or chapter. |
 | - | Stop playing song or chapter, and fade to silence. |
 | .. | Play previous song or chapter. |
-| .- | Change play mode (full song*, short, book). |
+| .- | Change play mode (full*, short, book). |
 | ... | Change volume (low, med*, high) in all modes. |
 | ..- | Change interval (5 sec, 10 sec*, 30 sec, 1 min) used in full and short modes. |
 | .... | Reset user settings (play mode, volume, interval, count and chapter). |
@@ -40,7 +40,7 @@ The blink code provides the results from the last command entered. Locate the co
 
 | n | Play Mode | Volume | Interval | Count | Reset |
 | :---: | :---: |  :---: | :---: | :---: | :---: |
-| 1 | full song | low | 5 sec | 1 | ok |
-| 2 | 20 sec | med | 10 sec | 2 | - |
+| 1 | full | low | 5 sec | 1 | ok |
+| 2 | short | med | 10 sec | 2 | - |
 | 3 | book | high | 30 sec | 3 | - |
 | 4 | - | - | 1 min | Unlimited | - |
