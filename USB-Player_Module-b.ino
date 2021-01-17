@@ -1,7 +1,7 @@
 /*
  Program: USB Micro SD Player Module
-    Date: 12-Jan-2021
-Revision: 24g
+    Date: 16-Jan-2021
+Revision: 24h
   Author: Gerry Walterscheid, jr.
 
 MP3-Player using DFPlayer mini, ATtiny85, USB, photoresistor or push button switch, 
@@ -74,30 +74,20 @@ The circuit:
 
 Updates in this version:
 
-- Suspend autoplay if paused, resuming after new play command is
-  requested.
-  
-- Reset playCount after waking up, or an extra long button switch
-  press, ie. greater than 5 seconds.
+- Fix auto play, which was broken when song was shorter than short mode 
+  time (30 sec) or had no interval pause when in single mode.
 
-- Reset playCount to 0 following reset command.
+- Following a reset, do not auto play next song. Instead, wait for the
+  next play command, then auto play based on interval and count settings.
 
-- Re-attempt play operation if initial attempt fails, to avoid missed
-  play attemps, or playing fewer songs than those determined by the 
-  count settings in autoplay mode.
+- Fixed broken pause command, which had been omitted after last update.
 
-- Remove separate autoplay mode, since this is automatcially covered
-  using the count and interval settings (intervelometer).
+- Remove pause after changing the interval time, to allow a quick way to
+  confirm pause time. The module will wait for the new interval setting
+  before playing the next song. Interval settings are ignored in book
+  mode.
 
-- Changed Short play mode time from 20 sec to 30 sec, to play more of
-  the song before fading to silence.
-
-- Following command, check for light flcker causing the sensor to 
-  rapidly oscillate, generating false commands. LED will remain off
-  if this occurs, forcing the user to adjust the sensitivity to stop
-  flicker.
-
-- Check for light flicker immediately following power on or waking up.
+- Fix wakeup and play function, which stopped following last update.
 
 */
 
@@ -164,7 +154,7 @@ byte intvlReset = 1;                  // Init interval setting (10s).
 byte interval;
 
 byte cntArray[4] = { 1, 2, 3, 0 };    // Counter settings (1, 2, 3, unlimited) times.
-byte cntReset = 0;                    // Init counter setting (unlimited).
+byte cntReset = 0;                    // Init counter setting (play 1 song).
 byte count;
 
 bool paused = false;                  // State of current song.
@@ -311,9 +301,12 @@ void loop()
     // If no more input, play next song.
     if (millis() > timer1) {
 
-      // Select command based on paused state.
-      if (paused) 
+      // Select command based on paused state. Do not resume play of last
+      // song if this command was issued following a reset. Instead, play
+      // the next song.
+      if (paused and file > 0) 
         DFPlayer.start();
+        
       else {
         DFPlayer.stop();
         wait_ms(100);
@@ -446,6 +439,9 @@ void loop()
 
       // Provide user feedback of interval time.
       displayStatus(interval);
+
+      // Resume auto play to demonstrate new interval time.
+      paused = false;
     
       state = 10;
       break; 
@@ -540,6 +536,9 @@ void loop()
       DFPlayer.stop();
       wait_ms(100);
       DFPlayer.volume(volArray[volume]);
+
+      // Wait for play command before playing next song.
+      paused = true;
       
       state = 99;
       break; 
@@ -598,8 +597,11 @@ void loop()
   // Items to check and perform periodically, outside of state machine.
   // ------------------------------------------------------------------ 
 
-  // Fade song after 20s in Short mode.
-
+  // Reset timer3 if song is playing.
+  if (digitalRead(DFPlayer_busy) == ON)
+    timer3 = millis() + (long) intArray[interval] * 1000;
+      
+  // Fade song after reaching time limit in Short mode.
   if (mode == Short)
   
     // If still playing song, fade volume after 20s.
@@ -620,16 +622,15 @@ void loop()
       paused = false;
     }
   
-  // If not in Book play mode or paused, auto trigger next song
-  // based on the current interval and count settings.
+  // Auto play next song based on the current interval and count settings.
+  // Do not auto play in book mode or currently in paused state.
+  if (mode != Book and !paused) 
   
-  if (mode != Book and !paused)
-        
     // If no button is pressed and in state 0...
     if (digitalRead(Button_switch) == OFF and state == 0)
       
       // Play next song after reaching interval, then set playTime.
-      if (digitalRead(DFPlayer_busy) == OFF and millis() > timer3) {
+      if (digitalRead(DFPlayer_busy) == OFF and millis() > timer3)
       
         // Check the play counter to determine whether to play audio.
         if (cntArray[count] == 0 or playCount < cntArray[count]) {
@@ -639,13 +640,6 @@ void loop()
           timer2 = millis() + playTime;
           paused = false;
         }
-
-      // Initialize timer3 after song ends, and reset paused status.
-      if (digitalRead(DFPlayer_busy) == ON) {
-        timer3 = millis() + (long) intArray[interval] * 1000;
-        paused = false;
-      }
-    }
 }
 
 // ------------------------------------------------------------------ 
