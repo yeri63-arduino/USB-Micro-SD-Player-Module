@@ -4,21 +4,21 @@
 Revision: 24h
   Author: Gerry Walterscheid, jr.
 
-MP3-Player using DFPlayer mini, ATtiny85, USB, photoresistor or push button switch, 
-potentiometer, and status LED. The 3 x 3.5cm module comes with the follow-
-ing features.
+MP3-Player using DFPlayer mini, ATtiny85, USB, photoresistor or push button 
+switch, potentiometer, and status LED. The 3 x 3.5cm module comes with the 
+following features.
 
  - User input available using either photocell or push button switch.
  - Module status (Error, Ready, Play Mode, ect.) via onboard LED.
  - Powered by standard Micro USB 1.0 A phone charger.
  - Read up to 32GB Micro SD with MP3 songs/audio clips.
  - Emulates external SD drive when connected to computer using USB cable.
- - Arduino programming of ATTINY available using ISP port.
+ - Arduino programming of ATTINY85 available using ISP port.
 
 Module commands are entered by waving hand over the photocell, or press-
-ing push button switch. Only one switching option can be installed.
-A command is considered complete if no addditional input is received
-within 500 ms. 
+ing push button switch. Only one input method can be installed on the 
+module. A command is considered complete if no addditional input is 
+received within 500 ms. 
 
 Note: A short press or shadow over the photocell is anything less
 than 500 ms. A long press is anything greater.
@@ -29,13 +29,13 @@ Key . = Short Press, - = Long Press, * = default
  -    = Stop playing song, and fade to silence.
 
  ..   = Play previous song.
- .-   = Change play mode (full*, 20 sec, book, auto).
+ .-   = Change play mode (full*, short, book).
 
- ...  = Change volume (low, med*, high) in single and 20 sec mode.
- ..-  = Change interval (5s, 10s*, 30s, 60s) in autoplay mode.
+ ...  = Change volume (low, med*, high) of songs.
+ ..-  = Change interval (5s, 10s*, 30s, 60s) between each song.
 
  .... = Reset user settings (play mode, volume, and interval).
- ...- = Change count (1, 2, 3, unlimited*) in auto mode.
+ ...- = Change count (1*, 2, 3, unlimited) of songs to play.
  
   Module Status (via LED):
 
@@ -88,6 +88,8 @@ Updates in this version:
   mode.
 
 - Fix wakeup and play function, which stopped following last update.
+
+- Correct some text in comments to reflect current program modifications.
 
 */
 
