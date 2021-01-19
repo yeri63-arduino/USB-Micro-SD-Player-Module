@@ -1,7 +1,7 @@
 /*
  Program: USB Micro SD Player Module
-    Date: 16-Jan-2021
-Revision: 24h
+    Date: 18-Jan-2021
+Revision: 24i
   Author: Gerry Walterscheid, jr.
 
 MP3-Player using DFPlayer mini, ATtiny85, USB, photoresistor or push button 
@@ -32,7 +32,7 @@ Key . = Short Press, - = Long Press, * = default
  .-   = Change play mode (full*, short, book).
 
  ...  = Change volume (low, med*, high) of songs.
- ..-  = Change interval (5s, 10s*, 30s, 60s) between each song.
+ ..-  = Change interval (5s, 10s, 30s, off*) between each song.
 
  .... = Reset user settings (play mode, volume, and interval).
  ...- = Change count (1*, 2, 3, unlimited) of songs to play.
@@ -74,22 +74,19 @@ The circuit:
 
 Updates in this version:
 
-- Fix auto play, which was broken when song was shorter than short mode 
-  time (30 sec) or had no interval pause when in single mode.
+- Allow the ability to disable autoplay using the interval setting.
+  This lets the module retain the ability to use autoplay in both
+  single and short modes.
 
-- Following a reset, do not auto play next song. Instead, wait for the
-  next play command, then auto play based on interval and count settings.
+- Change 60s interval to off, to disable autoplay feature. In this
+  setting, the photoresistor module would not start playing once the
+  room lights are turned on, but when a play command was issued by
+  a hand wave over the sensor. This has no effect on the push button
+  model.
 
-- Fixed broken pause command, which had been omitted after last update.
-
-- Remove pause after changing the interval time, to allow a quick way to
-  confirm pause time. The module will wait for the new interval setting
-  before playing the next song. Interval settings are ignored in book
-  mode.
-
-- Fix wakeup and play function, which stopped following last update.
-
-- Correct some text in comments to reflect current program modifications.
+- Change the default interval setting from 10s to off, so that
+  autoplay is not running by default. The module will only play a
+  song after a play command is issued.
 
 */
 
@@ -151,8 +148,8 @@ byte volArray[3] = { 10, 18, 25 };    // Volume settings (low, med, high).
 byte volReset = 1;                    // Init volume setting (1 = medium).
 byte volume;
 
-byte intArray[4] = { 5, 10, 30, 60 }; // Interval settings (5s, 10s, 30s, 60s).
-byte intvlReset = 1;                  // Init interval setting (10s).
+byte intArray[4] = { 5, 10, 30, 0 };  // Interval settings (5s, 10s, 30s, off).
+byte intvlReset = 3;                  // Init interval setting (off).
 byte interval;
 
 byte cntArray[4] = { 1, 2, 3, 0 };    // Counter settings (1, 2, 3, unlimited) times.
@@ -616,17 +613,14 @@ void loop()
       wait_ms(100);
       DFPlayer.volume(volArray[volume]);
       wait_ms(100);
-      
-      digitalWrite(LED_status, LED_on);
 
-      // Initialize timer3 and reset paused status.
-      timer3 = millis() + (long) intArray[interval] * 1000;
-      paused = false;
+      paused = false;     
+      digitalWrite(LED_status, LED_on);
     }
   
   // Auto play next song based on the current interval and count settings.
   // Do not auto play in book mode or currently in paused state.
-  if (mode != Book and !paused) 
+  if (mode != Book and !paused and intArray[interval] !=0) 
   
     // If no button is pressed and in state 0...
     if (digitalRead(Button_switch) == OFF and state == 0)
