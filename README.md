@@ -23,7 +23,7 @@ Key: (.) = Short Press, (-) = Long Press, (*) = default
 | .. | Play previous song or chapter. |
 | .- | Change play mode (full*, short, book). |
 | ... | Change volume (low, med*, high) in all modes. |
-| ..- | Change interval (5 sec, 10 sec*, 30 sec, 1 min) used in full and short modes. |
+| ..- | Change interval (5 sec, 10 sec, 30 sec, off*) used in full and short modes. |
 | .... | Reset user settings (play mode, volume, interval, count and chapter). |
 | ...- | Change count (1*, 2, 3, unlimited) number of songs to play. |
 
@@ -43,4 +43,4 @@ The blink code provides the results from the last command entered. Locate the co
 | 1 | full | low | 5 sec | 1 | ok |
 | 2 | short | med | 10 sec | 2 | - |
 | 3 | book | high | 30 sec | 3 | - |
-| 4 | - | - | 1 min | Unlimited | - |
+| 4 | - | - | off | Unlimited | - |
