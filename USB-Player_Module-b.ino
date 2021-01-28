@@ -1,5 +1,5 @@
 /*
- Program: USB Micro SD Player Module
+ Program: USB Micro SD Player Module (JL AA20HFj616-94 decoder)
     Date: 18-Jan-2021
 Revision: 24i
   Author: Gerry Walterscheid, jr.
